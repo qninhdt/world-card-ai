@@ -504,7 +504,6 @@ class GameEngine:
     def fill_week_deck_demo(self) -> None:
         """Fill the deck with demo cards for one week."""
         from game.demo import get_demo_card_pool
-        from cards.models import Choice, ChoiceCard
 
         # Provide structural cards natively on season start
         if self.state.day == 1:

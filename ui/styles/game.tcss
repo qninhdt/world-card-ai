@@ -44,3 +44,20 @@ DeathScreen {
 EndingScreen {
     align: center middle;
 }
+
+/* Seasonal Themes */
+GameScreen.season-0 {
+    background: #1a2f1a; /* Dark Green - Spring */
+}
+
+GameScreen.season-1 {
+    background: #2f2a1a; /* Dark Yellow/Orange - Summer */
+}
+
+GameScreen.season-2 {
+    background: #2f1a1a; /* Dark Red - Autumn */
+}
+
+GameScreen.season-3 {
+    background: #1a2a2f; /* Dark Blue - Winter */
+}

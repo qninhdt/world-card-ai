@@ -192,6 +192,11 @@ class GameScreen(Screen):
         engine = self.app.engine
         state = engine.state
 
+        # Update seasonal theme
+        for i in range(4):
+            self.remove_class(f"season-{i}")
+        self.add_class(f"season-{state.season_index}")
+
         self.query_one("#stats-bar", StatsBar).set_stats(state.stats, state.stat_defs)
         self.query_one("#events-panel", EventsPanel).set_events(
             engine.get_all_events_for_display()
