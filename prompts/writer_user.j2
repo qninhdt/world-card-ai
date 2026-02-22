@@ -1,0 +1,67 @@
+Generate a batch of cards for the current game state.
+
+LANGUAGE: {{ language_instruction }}
+
+World context: {{ world_context }}
+Valid stat IDs (use ONLY these): {{ stat_names }}
+Current state: {{ snapshot | tojson(indent=2) }}
+
+Current Season: {{ season.name }} ({{ season.description }}) — Week {{ season.week }}
+
+Available Tags (use ONLY these tag IDs):
+{% for tag in available_tags %}
+- {{ tag.id }}: {{ tag.description }}
+{% endfor %}
+
+Story progress:
+Fired nodes: {{ dag_context.fired | tojson }}
+Activatable nodes: {{ dag_context.activatable | tojson }}
+Upcoming (push toward these conditions): {{ dag_context.upcoming | tojson }}
+
+Ongoing events: {{ ongoing_events | tojson(indent=2) }}
+
+=== CARDS TO GENERATE ===
+
+COMMON CARDS (generate exactly {{ common_count }}):
+- React to current state, use enabled NPCs (by ID), vary themes
+- Be aware of the story DAG — generate cards that naturally push toward activatable plot conditions
+- Use function calls (left_calls/right_calls): mostly update_stat, occasionally add_tag from available pool
+- Set source='common' for these
+
+JOB CARDS (generate exactly 1 card per job):
+{% if jobs %}
+{% for job in jobs %}
+{% if job.job_type == "plot" %}
+- [PLOT] Generate a choice card for plot point. Set source='plot'.
+{% if job.context.get('is_ending') %} This is an ENDING node.{% endif %}
+Plot: {{ job.context.get('plot_description', '') }}
+{% endif %}
+{% endfor %}
+{% else %}
+None
+{% endif %}
+
+{% if is_season_start %}
+SEASON INITIALIZATION CARDS (generate exactly these INFO cards):
+{% if elapsed_days == 0 and life_number == 1 %}
+- [WELCOME] 1 INFO card (id MUST be "welcome_message"): Welcome to the world. Grand, evocative introduction.
+source='info'.
+{% elif is_first_day_after_death %}
+- [REBORN] 1 INFO card (id MUST start with "reborn_", e.g. "reborn_life_2"): Mystical resurrection from the latest
+death. Describe waking up. source='info'.
+{% endif %}
+- [SEASON] 1 INFO card (id MUST start with "season_", e.g. "season_1_0"): Narration of the current season starting.
+Highlight {{ season.name }}: {{ season.description }}. source='info'.
+- [DEATH] {{ 2 * stat_names|length }} INFO cards (ids must be "death_{stat}_{min/max}"): 2 for each stat hitting 0/100.
+Dramatic death scenes, 2-4 sentences. source='info'.
+{% endif %}
+
+Total cards to generate: {{ common_count + (jobs | length) }}{% if is_season_start %} + season initialization cards{%
+endif %}
+
+REMINDERS:
+- All tags MUST be from the available_tags list (English snake_case IDs)
+- Use only enabled NPC IDs as character field
+- Function calls only for valid stat IDs
+- Balanced but distinct left/right tradeoffs for choice cards
+- Info cards (type='info'): set source='info', no choices, use next_cards for long messages

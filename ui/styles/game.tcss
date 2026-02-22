@@ -1,0 +1,46 @@
+/* World Card AI - Global Styles */
+
+Screen {
+    background: $surface;
+}
+
+/* Title Screen */
+TitleScreen {
+    align: center middle;
+}
+
+/* Loading Screen */
+LoadingScreen {
+    align: center middle;
+}
+
+/* Game Screen - main layout */
+GameScreen #game-header {
+    height: auto;
+}
+
+GameScreen #game-body {
+    height: 1fr;
+}
+
+GameScreen #game-body-left {
+    width: 1fr;
+}
+
+GameScreen #game-body-right {
+    min-width: 28;
+}
+
+GameScreen #bottom-bar {
+    height: 3;
+}
+
+/* Death Screen */
+DeathScreen {
+    align: center middle;
+}
+
+/* Ending Screen */
+EndingScreen {
+    align: center middle;
+}
