@@ -1,3 +1,12 @@
+"""EventsPanel widget — sidebar listing all active in-game events.
+
+Renders each event as:  ``<type-icon> <icon> <name>  \n  <progress>  \n  <description>``
+
+Events are provided as plain dicts via ``set_events()`` (produced by
+``engine.get_all_events_for_display()``) so the widget has no dependency on
+the engine domain models.
+"""
+
 from __future__ import annotations
 
 from rich.panel import Panel

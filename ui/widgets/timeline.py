@@ -1,3 +1,12 @@
+"""Timeline widget — compact status bar at the bottom of the game screen.
+
+Shows (left to right):
+  World name  ·  Season icon + name  [season progress bar]  Day N, Year Y  ·  elapsed  ·  Life #N
+
+The season progress bar uses 4 block characters representing the 4 weeks:
+  ░ = future week,  ▒/▓ = current week (early/late),  █ = completed week.
+"""
+
 from __future__ import annotations
 
 from rich.text import Text

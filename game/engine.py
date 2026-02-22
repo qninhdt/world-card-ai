@@ -1,3 +1,18 @@
+"""Core game engine — orchestrates all backend systems.
+
+``GameEngine`` is the central coordinator.  It owns:
+- ``state``          — the ``GlobalBlackboard`` (all mutable game state)
+- ``deque``          — the ``WeightedDeque`` of cards for the current week
+- ``immediate_deque``— a high-priority queue for story/death/reborn cards
+- ``dag``            — the ``MacroDAG`` plot graph
+- ``death_loop``     — death detection and resurrection logic
+- ``job_queue``      — pending card generation jobs for the Writer agent
+- ``events``         — active in-game events
+
+The engine is deliberately free of I/O and UI concerns so it can be tested
+directly.  All AI calls and Textual widget updates live in the UI layer.
+"""
+
 from __future__ import annotations
 import logging
 import random
@@ -56,23 +71,39 @@ logger = logging.getLogger(__name__)
 
 
 class GameEngine:
+    """Central coordinator for all backend game systems.
+
+    Instantiated once per play session.  The UI layer should only call the
+    public methods of this class; it must not mutate ``state`` directly.
+    """
+
     def __init__(self) -> None:
         self.state = GlobalBlackboard()
         self.deque = WeightedDeque(capacity=WEEK_DECK_SIZE)
         self.dag = MacroDAG()
         self.death_loop = DeathLoop()
         self.job_queue = JobQueue()
+        # Flag set while the Writer async task is running.
         self._is_generating = False
-        self.immediate_deque: deque[Card] = deque()  # Story cards shown before deck
+        # High-priority queue for structural cards (welcome, reborn, death, season).
+        self.immediate_deque: deque[Card] = deque()
+        # Set to True after handle_death(); cleared by complete_resurrection().
         self._awaiting_resurrection: bool = False
         self._first_week_started: bool = False
 
-        # Events
+        # All currently active in-game events.
         self.events: list[Event] = []
 
     # ── World Building ──────────────────────────────────────────────────
 
     def build_from_schema(self, world: WorldGenSchema, stat_count: int) -> None:
+        """Initialise the engine from a fully generated ``WorldGenSchema``.
+
+        Converts schema definitions into runtime objects, resets the
+        ``GlobalBlackboard``, populates the NPC roster, and builds the plot DAG.
+        ``stat_count`` controls how many stats are taken from ``world.stats``
+        (the schema may contain more than requested).
+        """
         stat_defs = [
             StatDefinition(id=s.id, name=s.name, description=s.description, icon=s.icon)
             for s in world.stats[:stat_count]
@@ -146,6 +177,12 @@ class GameEngine:
         self._build_dag(world.plot_nodes)
 
     def _build_dag(self, plot_defs: list[PlotNodeDef]) -> None:
+        """Construct the ``MacroDAG`` from ``PlotNodeDef`` objects.
+
+        Nodes are added first, then edges, so forward references in
+        ``next_nodes`` are always resolved correctly.  Any reachability
+        warnings from the DAG validator are logged at WARNING level.
+        """
         self.dag = MacroDAG()
         for pd in plot_defs:
             node = PlotNode(
@@ -169,6 +206,11 @@ class GameEngine:
     # ── Card Drawing ────────────────────────────────────────────────────
 
     def draw_card(self) -> Card | None:
+        """Draw the next card to show the player.
+
+        ``immediate_deque`` takes priority so structural/story cards (season
+        transitions, welcome, death screens) always appear before deck cards.
+        """
         if self.immediate_deque:
             return self.immediate_deque.popleft()
         return self.deque.draw()
@@ -176,6 +218,13 @@ class GameEngine:
     # ── Card Resolution ─────────────────────────────────────────────────
 
     def resolve_card(self, card: Card, direction: str) -> ExecuteResult:
+        """Apply a card's action, advance the calendar, and fire lifecycle hooks.
+
+        Returns the ``ExecuteResult`` (stat changes, tree cards, etc.).
+        ``InfoCard`` resolutions do not advance the day counter.
+        Tree cards are inserted into the deck at high priority so they are
+        drawn immediately after the current card.
+        """
         executor = ActionExecutor(self.state, self.events)
         result = executor.resolve_card(card, direction)
 
@@ -252,10 +301,21 @@ class GameEngine:
     # ── Death ───────────────────────────────────────────────────────────
 
     def check_death(self) -> DeathInfo | None:
+        """Check whether any stat has hit a boundary (0 or 100).
+
+        Returns a ``DeathInfo`` snapshot if the player has died, else ``None``.
+        Must be called *after* ``resolve_card`` so stat changes are applied.
+        """
         return self.death_loop.check_death(self.state)
 
     def handle_death(self, death: DeathInfo) -> None:
-        """Show pre-generated death card. Does NOT resurrect — wait for card flip."""
+        """Queue a death info card and set the resurrection flag.
+
+        The death card is pulled from ``state.pending_death_cards`` (pre-generated
+        by the Writer each season).  If no pre-generated card exists a simple
+        fallback card is created.  Resurrection happens only after the player
+        dismisses this card (via ``complete_resurrection()``).
+        """
         boundary = "min" if death.cause_value <= 0 else "max"
         key = f"death_{death.cause_stat}_{boundary}"
         death_card = self.state.pending_death_cards.pop(key, None)
@@ -282,16 +342,25 @@ class GameEngine:
         self._awaiting_resurrection = True
 
     def complete_resurrection(self) -> None:
-        """Called after the player flips the death card.
-        Resurrects and prepares for a fresh start."""
+        """Finalise resurrection after the player dismisses the death card.
+
+        Clears the awaiting flag, runs ``resurrect()``, then skips time to
+        the start of the next season so the new life starts fresh.
+        """
         self._awaiting_resurrection = False
         karma = self.resurrect()
 
-        # Advance to the start of the next season natively
+        # Jump to Day 1 of the next season (time-skip on death is a game rule)
         self.state.advance_to_next_season()
         self.state.is_first_day_after_death = True
 
     def resurrect(self) -> list[str]:
+        """Reset state for a new life while preserving karma tags and DAG endings.
+
+        Clears events, deck, and pending death cards.  Non-ending plot nodes
+        are reset so the story can repeat if conditions are met again.
+        Returns the list of karma tags carried forward.
+        """
         karma = self.death_loop.resurrect(self.state)
         self.events.clear()
         self.deque.clear()
@@ -305,14 +374,23 @@ class GameEngine:
     # ── Plot ────────────────────────────────────────────────────────────
 
     def _check_plot_conditions(self) -> None:
-        """Check plot conditions after every action. If met, mark node as pending.
-        The actual firing happens at week end via fire_pending_plot()."""
+        """Evaluate all plot node conditions after each action.
+
+        Only the first activatable node is stored.  The actual card generation
+        and state mutation are deferred to ``fire_pending_plot()`` at week end
+        so the plot card appears at the start of the *next* week.
+        """
         nodes = self.dag.get_activatable_nodes(self.state)
         if nodes:
             self.state.pending_plot_node = nodes[0].id
 
     def fire_pending_plot(self) -> None:
-        """Called at end of week. If a node is pending, fire it and run its calls."""
+        """Fire the pending plot node (if any) and enqueue a Writer job for its card.
+
+        Called at week end.  The node's ``calls`` are executed immediately
+        (e.g. enabling an NPC), but the narrative card is generated async by
+        the Writer in the next batch so it appears at the start of the new week.
+        """
         node_id = self.state.pending_plot_node
         if not node_id:
             return
@@ -340,12 +418,19 @@ class GameEngine:
         self.state.pending_plot_node = None
 
     def check_ending(self) -> PlotNode | None:
+        """Return a fired ending node if one exists, else None."""
         return self.dag.check_ending(self.state)
 
     # ── Events ──────────────────────────────────────────────────────────
 
     def check_events(self) -> None:
-        """Check for finished events. Remove finished ones."""
+        """Remove events that have reached their termination condition.
+
+        Called at week end.  Each event type uses a different termination
+        check (phase count, progress target, deadline, or a condition expr).
+        Condition expressions are evaluated via ``eval()`` with a sandboxed
+        namespace — malformed expressions are silently skipped (logged at DEBUG).
+        """
         finished_ids = []
         for event in self.events:
             if isinstance(event, PhaseEvent) and event.is_finished:
@@ -378,7 +463,12 @@ class GameEngine:
         self.events = [e for e in self.events if e.id not in finished_ids]
 
     def get_all_events_for_display(self) -> list[dict]:
-        """Get all ongoing events formatted for UI display."""
+        """Serialise active events into plain dicts suitable for the UI.
+
+        Each dict contains at minimum: ``type``, ``name``, ``icon``,
+        ``description``.  Events that have a ``progress_display`` property
+        also include a ``progress`` key.
+        """
         events_display = []
         for e in self.events:
             display = {
@@ -395,11 +485,16 @@ class GameEngine:
     # ── Generation ──────────────────────────────────────────────────────
 
     def get_week_deck_size(self) -> int:
-        """How many cards to generate for a week deck."""
+        """Return the number of cards that should fill one week's deck."""
         return WEEK_DECK_SIZE
 
     def get_generation_context(self) -> dict:
-        """Build context for Writer batch."""
+        """Build the context dict passed to the Writer for batch generation.
+
+        Includes the current state snapshot, DAG context, active events, and
+        season info.  ``is_season_start`` is True on Day 1 of any season so
+        the Writer knows to generate structural cards (welcome, season, death).
+        """
         season = self.state.current_season()
         return {
             "is_season_start": self.state.day == 1,

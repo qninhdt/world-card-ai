@@ -1,3 +1,17 @@
+"""Main game screen — the primary interactive view during gameplay.
+
+Responsibilities (UI-layer only):
+  - Render the stats bar, card view, events panel, timeline, deck counter
+    and cost display.
+  - Translate player key-presses into ``engine`` method calls.
+  - Trigger async card generation (``_fill_week_deck``) and refresh widgets
+    when generation completes.
+  - Manage the week lifecycle: start → generate → draw → swipe → repeat.
+
+All game logic lives in ``GameEngine``; this screen only calls engine methods
+and updates widgets from the results.
+"""
+
 from __future__ import annotations
 
 import logging
@@ -84,7 +98,13 @@ class GameScreen(Screen):
     # ── Week Lifecycle ───────────────────────────────────────────────────
 
     def _begin_new_week(self) -> None:
-        """Begin a new week: show season card on first week, fill the deck, draw first card."""
+        """Start a new week: fill the deck (or use demo cards), then draw the first card.
+
+        In demo mode this is synchronous.  In AI mode an async worker is
+        started; if forced cards (welcome, season transition) are already in
+        ``engine.immediate_deque`` they are shown immediately while generation
+        runs in the background.
+        """
         engine = self.app.engine
 
         # Start async generation (or demo) immediately; season cards are handled natively
@@ -110,7 +130,15 @@ class GameScreen(Screen):
     # ── Action Handling ─────────────────────────────────────────────────
 
     def action_swipe(self, direction: str) -> None:
-        if not self.current_card:
+        """Handle a left or right swipe on the current card.
+
+        Delegates to ``engine.resolve_card``, then checks (in order):
+        1. Awaiting resurrection (death card flip) → resurrect and begin new week.
+        2. Death condition → queue death card and refresh UI.
+        3. Story ending → switch to EndingScreen.
+        4. Week over (deck empty) → begin new week.
+        5. Normal → draw next card and refresh.
+        """
             return
 
         engine = self.app.engine
@@ -153,9 +181,13 @@ class GameScreen(Screen):
         self._draw_next_card()
         self._update_all_widgets()
 
-    # ── Card Drawing ────────────────────────────────────────────────────
-
     def _draw_next_card(self) -> None:
+        """Pull the next card from the engine and update the card view widget.
+
+        Detects whether the next card is a structural/story card (death, reborn,
+        welcome) *before* popping it so the card view can apply the correct
+        styling.
+        """
         engine = self.app.engine
 
         # Detect story type BEFORE drawing
