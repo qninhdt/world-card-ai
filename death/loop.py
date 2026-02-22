@@ -48,7 +48,6 @@ class DeathLoop:
         state.previous_life_tags = karma.copy()
         state.karma.extend(karma)
         state.life_number += 1
-        state.turn = 0
 
         # Keep karma tags
         state.tags = set(karma)

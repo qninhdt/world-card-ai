@@ -1,10 +1,13 @@
 from __future__ import annotations
 
+import logging
 import networkx as nx
 from pydantic import BaseModel, Field
 
 from agents.schemas import FunctionCall
 from game.state import GlobalBlackboard
+
+logger = logging.getLogger(__name__)
 
 
 class PlotNode(BaseModel):
@@ -46,6 +49,7 @@ class MacroDAG:
         try:
             return bool(eval(node.condition, {"__builtins__": {}}, ctx))
         except Exception:
+            logger.debug("Failed to evaluate condition for node '%s': %s", node.id, node.condition, exc_info=True)
             return False
 
     def get_activatable_nodes(self, state: GlobalBlackboard) -> list[PlotNode]:

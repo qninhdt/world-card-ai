@@ -1,4 +1,6 @@
 from __future__ import annotations
+import logging
+import random
 from collections import deque
 
 from typing import TYPE_CHECKING
@@ -43,6 +45,14 @@ if TYPE_CHECKING:
 
 # ── Constants ───────────────────────────────────────────────────────────────
 WEEK_DECK_SIZE = DAYS_PER_WEEK  # 7 cards per week
+
+# Structural card ID markers used to route Writer output
+_WELCOME_CARD_ID = "welcome_message"
+_REBORN_CARD_PREFIX = "reborn_"
+_SEASON_CARD_PREFIX = "season_"
+_DEATH_CARD_PREFIX = "death_"
+
+logger = logging.getLogger(__name__)
 
 
 class GameEngine:
@@ -154,7 +164,7 @@ class GameEngine:
 
         warnings = self.dag.validate_reachability()
         for w in warnings:
-            print(f"[DAG WARNING] {w}")
+            logger.warning("[DAG WARNING] %s", w)
 
     # ── Card Drawing ────────────────────────────────────────────────────
 
@@ -360,7 +370,10 @@ class GameEngine:
                     if bool(eval(event.end_condition, {"__builtins__": {}}, ctx)):
                         finished_ids.append(event.id)
                 except Exception:
-                    pass
+                    logger.debug(
+                        "Failed to evaluate end_condition for event '%s': %s",
+                        event.id, event.end_condition, exc_info=True
+                    )
 
         self.events = [e for e in self.events if e.id not in finished_ids]
 
@@ -417,3 +430,134 @@ class GameEngine:
             card = validate_card_def(cd, self.state)
             cards.append(card)
         return self.deque.bulk_insert(cards)
+
+    def process_batch_output(self, batch_output, is_season_start: bool) -> None:
+        """Route Writer batch output to the correct destinations.
+
+        Structural cards (welcome, reborn, season, death) are stored on state
+        for later injection into ``immediate_deque``.  All other cards go
+        directly into the week deck.
+        """
+        from agents.schemas import InfoCardDef
+
+        deck_cards = []
+        for cd in batch_output.cards:
+            card_id = getattr(cd, "id", "") or ""
+
+            if isinstance(cd, InfoCardDef) and is_season_start:
+                if card_id == _WELCOME_CARD_ID:
+                    self.state.welcome_card = validate_card_def(cd, self.state)
+                    continue
+                if card_id.startswith(_REBORN_CARD_PREFIX):
+                    self.state.reborn_card = validate_card_def(cd, self.state)
+                    continue
+                if card_id.startswith(_SEASON_CARD_PREFIX):
+                    self.state.season_start_card = validate_card_def(cd, self.state)
+                    continue
+                if card_id.startswith(_DEATH_CARD_PREFIX):
+                    self.state.pending_death_cards[card_id] = validate_card_def(cd, self.state)
+                    continue
+
+            deck_cards.append(cd)
+
+        self.add_cards_from_defs(deck_cards)
+
+        if is_season_start:
+            # Insert season card first, then reborn/welcome so welcome/reborn
+            # remains at index 0 of the immediate_deque.
+            if self.state.season_start_card:
+                self.immediate_deque.appendleft(self.state.season_start_card)
+                self.state.season_start_card = None
+
+            if self.state.reborn_card:
+                self.immediate_deque.appendleft(self.state.reborn_card)
+                self.state.reborn_card = None
+
+            if self.state.welcome_card:
+                self.immediate_deque.appendleft(self.state.welcome_card)
+                self.state.welcome_card = None
+
+            self.state.is_first_day_after_death = False
+
+    def prepare_demo_week(self) -> None:
+        """Populate the deck with demo/offline cards for the current week.
+
+        Called instead of the async Writer path when running in demo mode.
+        All card-creation and state-mutation logic lives here so the UI layer
+        only needs to call this method and then refresh its widgets.
+        """
+        from game.demo import get_demo_card_pool
+        from cards.models import Choice, ChoiceCard, InfoCard
+
+        if self.state.day == 1:
+            # ── Death cards for every stat boundary ──────────────────────
+            for sd in self.state.stat_defs:
+                for bound in ("min", "max"):
+                    self.state.pending_death_cards[f"death_{sd.id}_{bound}"] = InfoCard(
+                        id=f"demo_death_{sd.id}_{bound}",
+                        title="☠ Death",
+                        description=(
+                            f"Your {sd.name} reached its "
+                            f"{'minimum' if bound == 'min' else 'maximum'} limit."
+                        ),
+                        character="narrator",
+                        source="info",
+                        priority=5,
+                    )
+
+            # ── Welcome / reborn card ────────────────────────────────────
+            if self.state.elapsed_days == 1 and self.state.life_number == 1:
+                self.immediate_deque.append(InfoCard(
+                    id="demo_welcome",
+                    title="A Kingdom Awaits",
+                    description="Welcome to the demo world. Your reign begins now.",
+                    character="narrator",
+                    source="info",
+                    priority=5,
+                ))
+            elif self.state.is_first_day_after_death:
+                self.immediate_deque.append(InfoCard(
+                    id="demo_reborn",
+                    title="Awakening",
+                    description=f"Life #{self.state.life_number}. The cycle begins anew.",
+                    character="narrator",
+                    source="info",
+                    priority=5,
+                ))
+                self.state.is_first_day_after_death = False
+
+            # ── Season transition card ───────────────────────────────────
+            season = self.state.current_season()
+            if season:
+                self.immediate_deque.append(InfoCard(
+                    id=f"demo_season_{self.state.year}_{self.state.season_index}",
+                    title=f"{season.icon} {season.name}",
+                    description=season.description,
+                    character="narrator",
+                    source="info",
+                    priority=5,
+                ))
+
+        # ── Process pending jobs (plot nodes only in demo) ───────────────
+        jobs = self.job_queue.drain()
+        for job in jobs:
+            if job.job_type == "plot":
+                desc = job.context.get("plot_description", "A major event occurs.")
+                if job.context.get("is_ending"):
+                    desc += "\n\n" + job.context.get("ending_text", "")
+                plot_card = ChoiceCard(
+                    id=f"demo_plot_{job.context.get('node_id')}",
+                    title="Story Event",
+                    description=desc,
+                    character="narrator",
+                    source="plot",
+                    priority=4,
+                    left=Choice(text="Continue", calls=[]),
+                    right=Choice(text="Continue", calls=[]),
+                )
+                self.deque.insert(plot_card)
+
+        # ── Fill deck from demo pool ─────────────────────────────────────
+        pool = get_demo_card_pool()
+        random.shuffle(pool)
+        self.deque.bulk_insert(pool[: self.get_week_deck_size()])
