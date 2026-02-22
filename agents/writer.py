@@ -33,7 +33,17 @@ class Writer:
         jobs: list[CardGenJob],
         context: dict,
     ) -> WriterBatchOutput:
-        """Generate a unified batch: m common cards + 1 card per job."""
+        """
+        Generate a unified batch of cards using the LLM.
+
+        Args:
+            common_count: Number of standard choice cards to generate.
+            jobs: List of specific card generation jobs (e.g., plot events).
+            context: Dictionary containing game state context (stats, tags, history).
+
+        Returns:
+            WriterBatchOutput: Parsed output containing the generated cards.
+        """
         lang_note = language_instruction(self.language)
 
         system_prompt = render("writer_system.j2")
