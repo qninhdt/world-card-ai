@@ -1,3 +1,12 @@
+"""DeckCounter widget — shows remaining cards and AI generation status.
+
+Renders a compact bar:  ``[AI writing...]  Deck ████░░  N/M``
+
+Bar colour:
+  cyan   — deck is above the half-full threshold.
+  yellow — deck is at or below half, indicating generation may be needed soon.
+"""
+
 from __future__ import annotations
 
 from rich.text import Text

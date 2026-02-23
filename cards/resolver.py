@@ -1,3 +1,21 @@
+"""Action executor — applies AI-generated function calls to the game state.
+
+``ActionExecutor`` is the bridge between the declarative ``FunctionCall``
+objects produced by the AI and the mutable ``GlobalBlackboard``.  It
+implements eleven game actions:
+
+  ``update_stat``           — change a stat value by a delta (clamped 0–100).
+  ``add_tag`` / ``remove_tag`` — add or remove a string tag from the player.
+  ``add_event``             — create and register a new in-game event.
+  ``remove_event``          — remove an event by ID.
+  ``advance_event``         — advance a PhaseEvent to its next phase.
+  ``update_event_progress`` — increment a ProgressEvent's counter.
+  ``change_event_deadline`` — update a TimedEvent's deadline.
+  ``enable_npc``            — make an NPC available for card generation.
+  ``disable_npc``           — hide an NPC from card generation.
+  ``advance_time``          — fast-forward the calendar by N days.
+"""
+
 from __future__ import annotations
 
 from typing import Any
@@ -56,7 +74,11 @@ class ActionExecutor:
         }
 
     def execute(self, calls: list[FunctionCall]) -> dict[str, int]:
-        """Run a list of function calls. Returns stat_changes dict."""
+        """Execute a list of function calls and return a dict of stat changes.
+
+        Unknown function names are silently ignored so forward-compatible AI
+        output does not crash older engine versions.
+        """
         stat_changes: dict[str, int] = {}
         for call in calls:
             handler = self._registry.get(call.name)
@@ -67,8 +89,14 @@ class ActionExecutor:
         return stat_changes
 
     def resolve_card(self, card: Card, direction: str) -> ExecuteResult:
-        """Resolve a card (choice or info). Runs function calls and returns result."""
-        # Note: turn is incremented by GameEngine.resolve_card, not here.
+        """Resolve a card action and return an ``ExecuteResult``.
+
+        For ``ChoiceCard``: executes the chosen side's function calls and
+        tracks the NPC appearance counter.
+        For ``InfoCard``: no calls are executed; ``next_cards`` are returned
+        as tree cards so they appear immediately after dismissal.
+        """
+        # Note: day advancement is handled by GameEngine.resolve_card, not here.
 
         if isinstance(card, InfoCard):
             return ExecuteResult(
@@ -101,6 +129,12 @@ class ActionExecutor:
     # ── Function Implementations ────────────────────────────────────────
 
     def _update_stat(self, params: dict) -> dict[str, int]:
+        """Apply a delta to one or more stats, clamping each value to [0, 100].
+
+        Supports two calling conventions from the AI:
+          1. ``{stat_id: "x", delta: 5}`` — explicit stat + delta pair.
+          2. ``{treasury: 5, military: -3}`` — dict of stat_id → delta pairs.
+        """
         changes = {}
         # Support {stat_id: str, delta|change: int} format
         if "stat_id" in params and ("delta" in params or "change" in params):

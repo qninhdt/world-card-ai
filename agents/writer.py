@@ -1,3 +1,20 @@
+"""Writer agent — generates weekly card batches using a fast LLM.
+
+The Writer receives:
+- The world context and available stat names
+- A ``common_count`` indicating how many regular cards to generate
+- A list of ``CardGenJob`` objects for special cards (plot, event, etc.)
+- A context dict with the current game snapshot, DAG state, ongoing events,
+  and season info
+
+It renders Jinja2 prompt templates, calls the fast model, repairs the JSON
+response (tolerating minor malformations), and validates the output against
+``WriterBatchOutput``.
+
+All card routing (structural vs. deck cards) is handled by the engine's
+``process_batch_output()`` method — the Writer only produces raw definitions.
+"""
+
 from __future__ import annotations
 
 from langchain_core.messages import HumanMessage, SystemMessage
@@ -13,6 +30,12 @@ import re
 from langchain_core.output_parsers import PydanticOutputParser
 
 class Writer:
+    """Generates a batch of cards for one game week using the fast LLM model.
+
+    Instantiated fresh each week so the world context and stat names are
+    always up-to-date.
+    """
+
     def __init__(
         self,
         world_context: str = "",
@@ -33,7 +56,11 @@ class Writer:
         jobs: list[CardGenJob],
         context: dict,
     ) -> WriterBatchOutput:
-        """Generate a unified batch: m common cards + 1 card per job."""
+        """Generate ``common_count`` common cards plus one card per job.
+
+        Returns a ``WriterBatchOutput`` containing all generated card defs.
+        JSON repair is attempted on malformed model output before validation.
+        """
         lang_note = language_instruction(self.language)
 
         system_prompt = render("writer_system.j2")

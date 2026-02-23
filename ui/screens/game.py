@@ -1,6 +1,20 @@
+"""Main game screen — the primary interactive view during gameplay.
+
+Responsibilities (UI-layer only):
+  - Render the stats bar, card view, events panel, timeline, deck counter
+    and cost display.
+  - Translate player key-presses into ``engine`` method calls.
+  - Trigger async card generation (``_fill_week_deck``) and refresh widgets
+    when generation completes.
+  - Manage the week lifecycle: start → generate → draw → swipe → repeat.
+
+All game logic lives in ``GameEngine``; this screen only calls engine methods
+and updates widgets from the results.
+"""
+
 from __future__ import annotations
 
-import random
+import logging
 
 from textual.app import ComposeResult
 from textual.binding import Binding
@@ -15,6 +29,8 @@ from ui.widgets.deck_counter import DeckCounter
 from ui.widgets.events_panel import EventsPanel
 from ui.widgets.stats_bar import StatsBar
 from ui.widgets.timeline import Timeline
+
+logger = logging.getLogger(__name__)
 
 
 class GameScreen(Screen):
@@ -82,7 +98,13 @@ class GameScreen(Screen):
     # ── Week Lifecycle ───────────────────────────────────────────────────
 
     def _begin_new_week(self) -> None:
-        """Begin a new week: show season card on first week, fill the deck, draw first card."""
+        """Start a new week: fill the deck (or use demo cards), then draw the first card.
+
+        In demo mode this is synchronous.  In AI mode an async worker is
+        started; if forced cards (welcome, season transition) are already in
+        ``engine.immediate_deque`` they are shown immediately while generation
+        runs in the background.
+        """
         engine = self.app.engine
 
         # Start async generation (or demo) immediately; season cards are handled natively
@@ -108,20 +130,21 @@ class GameScreen(Screen):
     # ── Action Handling ─────────────────────────────────────────────────
 
     def action_swipe(self, direction: str) -> None:
+        """Handle a left or right swipe on the current card."""
         if not self.current_card:
             return
 
         engine = self.app.engine
         card = self.current_card
 
-        # Resolve the card
-        result = engine.resolve_card(card, direction)
-
         # Death card flip → resurrect and start new week
         if engine._awaiting_resurrection:
             engine.complete_resurrection()
             self._begin_new_week()
             return
+
+        # Resolve the card — applies stat changes and advances the day
+        engine.resolve_card(card, direction)
 
         # Check death
         death = engine.check_death()
@@ -143,7 +166,6 @@ class GameScreen(Screen):
         if engine.is_week_over:
             # Force UI update so the final card's consequences show BEFORE async wait
             self._update_all_widgets()
-            
             # Deck automatically resets — start a new week
             self._begin_new_week()
             return
@@ -151,9 +173,13 @@ class GameScreen(Screen):
         self._draw_next_card()
         self._update_all_widgets()
 
-    # ── Card Drawing ────────────────────────────────────────────────────
-
     def _draw_next_card(self) -> None:
+        """Pull the next card from the engine and update the card view widget.
+
+        Detects whether the next card is a structural/story card (death, reborn,
+        welcome) *before* popping it so the card view can apply the correct
+        styling.
+        """
         engine = self.app.engine
 
         # Detect story type BEFORE drawing
@@ -225,7 +251,7 @@ class GameScreen(Screen):
         try:
             self.query_one("#cost-display", CostDisplay).update_display()
         except Exception:
-            pass
+            logger.debug("Failed to update cost display", exc_info=True)
 
     # ── Deck Filling ────────────────────────────────────────────────────
 
@@ -240,8 +266,6 @@ class GameScreen(Screen):
         self._update_deck_counter(is_generating=True)
         try:
             from agents.writer import Writer
-            from agents.schemas import InfoCardDef
-            from cards.validator import validate_card_def
 
             writer = Writer(
                 world_context=engine.state.world_context,
@@ -257,55 +281,14 @@ class GameScreen(Screen):
 
             batch_output = await writer.generate_batch(common_count, jobs, context)
 
-            deck_cards = []
-
-            for cd in batch_output.cards:
-                card_id = getattr(cd, "id", "") or ""
-
-                if isinstance(cd, InfoCardDef):
-                    if is_season_start:
-                        if card_id == "welcome_message":
-                            engine.state.welcome_card = validate_card_def(cd, engine.state)
-                            continue
-                        if card_id.startswith("reborn_"):
-                            engine.state.reborn_card = validate_card_def(cd, engine.state)
-                            continue
-                        if card_id.startswith("season_"):
-                            engine.state.season_start_card = validate_card_def(cd, engine.state)
-                            continue
-                        if card_id.startswith("death_"):
-                            engine.state.pending_death_cards[card_id] = validate_card_def(cd, engine.state)
-                            continue
-
-                # Everything else goes into the deck
-                deck_cards.append(cd)
-
-            engine.add_cards_from_defs(deck_cards)
+            engine.process_batch_output(batch_output, is_season_start)
             self._update_cost()
-
-            if is_season_start:
-                # Insert season card first, then reborn/welcome, so welcome/reborn remains at index 0
-                if engine.state.season_start_card:
-                    engine.immediate_deque.appendleft(engine.state.season_start_card)
-                    engine.state.season_start_card = None
-                
-                if engine.state.reborn_card:
-                    engine.immediate_deque.appendleft(engine.state.reborn_card)
-                    engine.state.reborn_card = None
-                
-                if engine.state.welcome_card:
-                    engine.immediate_deque.appendleft(engine.state.welcome_card)
-                    engine.state.welcome_card = None
-                
-                engine.state.is_first_day_after_death = False
 
             # Now draw the first card and update
             self._draw_next_card()
             self._update_all_widgets()
-        except Exception as exc:
-            import traceback
-            traceback.print_exc()
-            # Fallback to demo cards on failure
+        except Exception:
+            logger.exception("Card generation failed, falling back to demo cards")
             self._fill_week_deck_demo()
             self._draw_next_card()
             self._update_all_widgets()
@@ -315,78 +298,7 @@ class GameScreen(Screen):
 
     def _fill_week_deck_demo(self) -> None:
         """Fill the deck with demo cards for one week."""
-        from game.demo import get_demo_card_pool
-        from cards.models import Choice, ChoiceCard
-        engine = self.app.engine
-        # Provide structural cards natively on season start
-        if engine.state.day == 1:
-            # 1. Death cards for all stats
-            for sd in engine.state.stat_defs:
-                for bound in ("min", "max"):
-                    engine.pending_death_cards[f"death_{sd.id}_{bound}"] = InfoCard(
-                        id=f"demo_death_{sd.id}_{bound}",
-                        title="☠ Death",
-                        description=f"Your {sd.name} reached its {'minimum' if bound=='min' else 'maximum'} limit.",
-                        character="narrator",
-                        source="info",
-                        priority=5,
-                    )
-
-            # 2. Welcome or Reborn
-            if engine.state.elapsed_days == 1 and engine.state.life_number == 1:
-                engine.immediate_deque.append(InfoCard(
-                    id="demo_welcome",
-                    title="A Kingdom Awaits",
-                    description="Welcome to the demo world. Your reign begins now.",
-                    character="narrator",
-                    source="info",
-                    priority=5,
-                ))
-            elif engine.state.is_first_day_after_death:
-                engine.immediate_deque.append(InfoCard(
-                    id="demo_reborn",
-                    title="Awakening",
-                    description=f"Life #{engine.state.life_number}. The cycle begins anew.",
-                    character="narrator",
-                    source="info",
-                    priority=5,
-                ))
-                engine.state.is_first_day_after_death = False
-
-            # 3. Season transition
-            season = engine.state.current_season()
-            if season:
-                engine.immediate_deque.append(InfoCard(
-                    id=f"demo_season_{engine.state.year}_{engine.state.season_index}",
-                    title=f"{season.icon} {season.name}",
-                    description=season.description,
-                    character="narrator",
-                    source="info",
-                    priority=5,
-                ))
-
-        # Process any pending jobs (only plot nodes remain)
-        jobs = engine.job_queue.drain()
-        for job in jobs:
-            if job.job_type == "plot":
-                desc = job.context.get('plot_description', 'A major event occurs.')
-                if job.context.get('is_ending'):
-                    desc += "\n\n" + job.context.get('ending_text', '')
-                plot_card = ChoiceCard(
-                    id=f"demo_plot_{job.context.get('node_id')}",
-                    title="Story Event",
-                    description=desc,
-                    character="narrator",
-                    source="plot",
-                    priority=4,
-                    left=Choice(text="Continue", calls=[]),
-                    right=Choice(text="Continue", calls=[])
-                )
-                engine.deque.insert(plot_card)
-
-        pool = get_demo_card_pool()
-        random.shuffle(pool)
-        engine.deque.bulk_insert(pool[:engine.get_week_deck_size()])
+        self.app.engine.prepare_demo_week()
         self._update_deck_counter()
 
     # ── Navigation ──────────────────────────────────────────────────────

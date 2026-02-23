@@ -1,10 +1,33 @@
+"""Plot DAG (Directed Acyclic Graph) — the branching story structure.
+
+``MacroDAG`` wraps a ``networkx.DiGraph`` and adds game-specific logic:
+
+- Nodes represent story beats (generated as cards when fired).
+- Edges define prerequisite relationships — a child node can only be
+  activated after all of its parent nodes have fired.
+- Node conditions are Python expressions evaluated against state context
+  (stats, tags, season, day, elapsed_days).  They use ``eval()`` with
+  ``{"__builtins__": {}}`` to prevent arbitrary code execution.
+- Ending nodes trigger the ``EndingScreen`` when fired.
+
+Workflow each week:
+  1. ``get_activatable_nodes()`` — find nodes whose predecessors are all
+     fired and whose conditions are currently satisfied.
+  2. ``GameEngine._check_plot_conditions()`` stores the first result.
+  3. At week end ``fire_node()`` marks it as fired, runs its calls, and
+     enqueues a Writer job so the narrative card appears next week.
+"""
+
 from __future__ import annotations
 
+import logging
 import networkx as nx
 from pydantic import BaseModel, Field
 
 from agents.schemas import FunctionCall
 from game.state import GlobalBlackboard
+
+logger = logging.getLogger(__name__)
 
 
 class PlotNode(BaseModel):
@@ -46,6 +69,7 @@ class MacroDAG:
         try:
             return bool(eval(node.condition, {"__builtins__": {}}, ctx))
         except Exception:
+            logger.debug("Failed to evaluate condition for node '%s': %s", node.id, node.condition, exc_info=True)
             return False
 
     def get_activatable_nodes(self, state: GlobalBlackboard) -> list[PlotNode]:

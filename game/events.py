@@ -1,3 +1,15 @@
+"""Event system — four event types that persist across turns.
+
+Events are attached to the game's event list via ``add_event`` function calls
+and are checked / removed by ``GameEngine.check_events()`` at week end.
+
+Event types:
+  ``PhaseEvent``    — progresses through named phases (e.g. a siege with 3 stages).
+  ``ProgressEvent`` — tracks a numeric goal (e.g. "collect 5 gold").
+  ``TimedEvent``    — expires at a calendar deadline [day, season, year].
+  ``ConditionEvent``— ends when a Python expression evaluates to True.
+"""
+
 from __future__ import annotations
 
 from typing import Annotated, Literal, Union

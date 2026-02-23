@@ -1,3 +1,15 @@
+"""CardView widget — renders the current card in the centre of the game screen.
+
+Three visual modes:
+  Normal choice card  — title panel + left/right swipe prompts with stat previews.
+  Info card           — title panel + single dismiss prompt (no choices).
+  Story card          — dramatic full-panel style for death / reborn / welcome
+                        events, selected via ``set_story_card()``.
+
+Stat effect indicators in the choice labels use ≤ 3 symbols to show magnitude:
+  ``[stat: +]`` / ``[stat: +++]`` / ``[stat: ---]``
+"""
+
 from __future__ import annotations
 
 from rich.align import Align

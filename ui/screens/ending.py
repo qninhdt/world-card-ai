@@ -1,3 +1,9 @@
+"""Ending screen — displayed when a story-ending plot node fires.
+
+Shows the ending title, flavour text, final stats, and play history.
+The player can restart (go back to the title screen) or quit.
+"""
+
 from __future__ import annotations
 
 from textual.app import ComposeResult

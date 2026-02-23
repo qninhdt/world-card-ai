@@ -1,3 +1,12 @@
+"""StatsBar widget — displays all player stats as icon + bar + value columns.
+
+Each stat renders as:  ``<icon> <name> ████░░░░ <value>``
+
+An optional preview overlay (used when the player hovers over a card choice)
+shows green/red deltas next to the current value so the player can see the
+consequences of each swipe before committing.
+"""
+
 from __future__ import annotations
 
 from rich.columns import Columns
@@ -29,16 +38,19 @@ class StatsBar(Widget):
         self._preview: dict[str, int] = {}
 
     def set_stats(self, stats: dict[str, int], stat_defs: list[StatDefinition]) -> None:
+        """Update the stat values and definitions, then refresh the widget."""
         self._stats = dict(stats)
         self._stat_defs = list(stat_defs)
         self._preview = {}
         self.refresh()
 
     def set_preview(self, effects: dict[str, int]) -> None:
+        """Show delta indicators on top of current values (e.g. on card hover)."""
         self._preview = dict(effects)
         self.refresh()
 
     def clear_preview(self) -> None:
+        """Remove any preview deltas and refresh."""
         self._preview = {}
         self.refresh()
 
