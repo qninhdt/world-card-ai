@@ -130,28 +130,21 @@ class GameScreen(Screen):
     # ── Action Handling ─────────────────────────────────────────────────
 
     def action_swipe(self, direction: str) -> None:
-        """Handle a left or right swipe on the current card.
-
-        Delegates to ``engine.resolve_card``, then checks (in order):
-        1. Awaiting resurrection (death card flip) → resurrect and begin new week.
-        2. Death condition → queue death card and refresh UI.
-        3. Story ending → switch to EndingScreen.
-        4. Week over (deck empty) → begin new week.
-        5. Normal → draw next card and refresh.
-        """
+        """Handle a left or right swipe on the current card."""
+        if not self.current_card:
             return
 
         engine = self.app.engine
         card = self.current_card
-
-        # Resolve the card
-        result = engine.resolve_card(card, direction)
 
         # Death card flip → resurrect and start new week
         if engine._awaiting_resurrection:
             engine.complete_resurrection()
             self._begin_new_week()
             return
+
+        # Resolve the card — applies stat changes and advances the day
+        engine.resolve_card(card, direction)
 
         # Check death
         death = engine.check_death()
@@ -173,7 +166,6 @@ class GameScreen(Screen):
         if engine.is_week_over:
             # Force UI update so the final card's consequences show BEFORE async wait
             self._update_all_widgets()
-            
             # Deck automatically resets — start a new week
             self._begin_new_week()
             return

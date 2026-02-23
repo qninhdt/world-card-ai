@@ -196,6 +196,7 @@ Here is the structured markdown to-do list, sếp.
 * [ ] Add AI-generated hints prior to each season
 * [ ] Implement an "undo last action" feature
 * [ ] Update progression logic: Configure the system to save a user checkpoint at the beginning of each season rather than skipping directly to the next season
+* [ ] A NPC should have a card to introduce them when they are first introduced
 
 ---
 
