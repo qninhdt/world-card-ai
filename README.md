@@ -101,12 +101,12 @@ Loads the pre-built **Kingdom of Ardenvale** world and uses a hand-crafted card 
 
 ## Controls
 
-| Key | Action |
-|-----|--------|
-| `←` / `A` | Swipe left |
-| `→` / `D` | Swipe right |
-| `Q` | Quit |
-| `~` | Toggle cheat/debug panel |
+| Key       | Action                   |
+| --------- | ------------------------ |
+| `←` / `A` | Swipe left               |
+| `→` / `D` | Swipe right              |
+| `Q`       | Quit                     |
+| `~`       | Toggle cheat/debug panel |
 
 ---
 
@@ -200,6 +200,7 @@ Here is the structured markdown to-do list, sếp.
 * [ ] Player chacracter and NPCs should age each season, and the LLM should be aware of this when generating cards (e.g., "Your trusted advisor is now an old man nearing the end of his life. Do you...")
 * [ ] Add a "legacy" system where certain achievements or milestones from past lives can unlock special cards or options in future lives (e.g., "Because you successfully defended the kingdom from a dragon in a past life, you have the option to call upon the Dragon's Aid in this life")
 * [ ] Use Lua as the scripting language for card effects instead of Python eval.
+* [ ] All players share a same story tree when they start there game from a same world.
 ---
 
 Would you like me to expand any of these items into smaller, actionable sub-tasks?
