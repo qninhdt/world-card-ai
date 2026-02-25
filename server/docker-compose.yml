@@ -1,0 +1,17 @@
+version: '3.8'
+
+services:
+  server:
+    build: .
+    ports:
+      - "8080:8080"
+    environment:
+      PORT: 8080
+      DB_PATH: /data/game.db
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-sk-placeholder}
+    volumes:
+      - game_data:/data
+    restart: unless-stopped
+
+volumes:
+  game_data:

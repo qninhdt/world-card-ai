@@ -28,7 +28,7 @@ def get_heavy_model() -> ChatOpenAI:
         model=os.getenv("HEAVY_MODEL", "google/gemini-2.5-pro"),
         api_key=_get_api_key(),
         base_url="https://openrouter.ai/api/v1",
-        temperature=0.9,
+        temperature=1.0,
         max_tokens=32768,
     )
 
@@ -38,6 +38,6 @@ def get_fast_model() -> ChatOpenAI:
         model=os.getenv("FAST_MODEL", "google/gemini-2.5-flash"),
         api_key=_get_api_key(),
         base_url="https://openrouter.ai/api/v1",
-        temperature=0.7,
+        temperature=1.0,
         max_tokens=32768,
     )

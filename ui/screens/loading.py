@@ -1,18 +1,3 @@
-"""Loading screen — shown while the Architect generates the world and the
-Writer produces the first batch of cards.
-
-Two paths:
-  **Demo mode** — loads the pre-built ``get_demo_world()`` synchronously with
-  simulated progress steps (no API calls needed).
-
-  **AI mode** — streams the Architect output section by section, updating the
-  progress list as each JSON block arrives.  Once the world is built the Writer
-  generates the initial card batch, with routing delegated to
-  ``engine.process_batch_output()``.
-
-On completion both paths switch to ``GameScreen``.
-"""
-
 from __future__ import annotations
 
 import random
@@ -205,9 +190,44 @@ class LoadingScreen(Screen):
 
             batch_output = await writer.generate_batch(common_count, jobs, context)
 
-            # Route structural cards (welcome, season, death) to their state
-            # slots and insert the rest into the deck — same logic as game.py.
-            engine.process_batch_output(batch_output, is_season_start)
+            from agents.schemas import InfoCardDef
+            from cards.validator import validate_card_def
+
+            deck_cards = []
+
+            for cd in batch_output.cards:
+                card_id = getattr(cd, "id", "") or ""
+
+                if isinstance(cd, InfoCardDef):
+                    if is_season_start:
+                        if card_id == "welcome_message":
+                            engine.state.welcome_card = validate_card_def(cd, engine.state)
+                            continue
+                        if card_id.startswith("reborn_"):
+                            engine.state.reborn_card = validate_card_def(cd, engine.state)
+                            continue
+                        if card_id.startswith("season_"):
+                            engine.state.season_start_card = validate_card_def(cd, engine.state)
+                            continue
+                        if card_id.startswith("death_"):
+                            engine.state.pending_death_cards[card_id] = validate_card_def(cd, engine.state)
+                            continue
+
+                deck_cards.append(cd)
+
+            engine.add_cards_from_defs(deck_cards)
+            
+            if is_season_start:
+                if engine.state.season_start_card:
+                    engine.immediate_deque.appendleft(engine.state.season_start_card)
+                    engine.state.season_start_card = None
+                if engine.state.reborn_card:
+                    engine.immediate_deque.appendleft(engine.state.reborn_card)
+                    engine.state.reborn_card = None
+                if engine.state.welcome_card:
+                    engine.immediate_deque.appendleft(engine.state.welcome_card)
+                    engine.state.welcome_card = None
+                engine.state.is_first_day_after_death = False
 
             cost_text = f"Total: {app.cost_tracker.summary}"
             self.query_one("#loading-cost").update(cost_text)

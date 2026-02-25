@@ -44,20 +44,15 @@ None
 {% if is_season_start %}
 SEASON INITIALIZATION CARDS (generate exactly these INFO cards):
 {% if elapsed_days == 0 and life_number == 1 %}
-- [WELCOME] 1 INFO card (id MUST be "welcome_message"): Welcome to the world. Grand, evocative introduction.
-source='info'.
+- [WELCOME] 1 INFO card (id MUST be "welcome_message"): Welcome to the world. Grand, evocative introduction. source='info'.
 {% elif is_first_day_after_death %}
-- [REBORN] 1 INFO card (id MUST start with "reborn_", e.g. "reborn_life_2"): Mystical resurrection from the latest
-death. Describe waking up. source='info'.
+- [REBORN] 1 INFO card (id MUST start with "reborn_", e.g. "reborn_life_2"): Mystical resurrection from the latest death. Describe waking up. source='info'.
 {% endif %}
-- [SEASON] 1 INFO card (id MUST start with "season_", e.g. "season_1_0"): Narration of the current season starting.
-Highlight {{ season.name }}: {{ season.description }}. source='info'.
-- [DEATH] {{ 2 * stat_names|length }} INFO cards (ids must be "death_{stat}_{min/max}"): 2 for each stat hitting 0/100.
-Dramatic death scenes, 2-4 sentences. source='info'.
+- [SEASON] 1 INFO card (id MUST start with "season_", e.g. "season_1_0"): Narration of the current season starting. Highlight {{ season.name }}: {{ season.description }}. source='info'.
+- [DEATH] {{ 2 * stat_names|length }} INFO cards (ids must be "death_{stat}_{min/max}"): 2 for each stat hitting 0/100. Dramatic death scenes, 2-4 sentences. source='info'.
 {% endif %}
 
-Total cards to generate: {{ common_count + (jobs | length) }}{% if is_season_start %} + season initialization cards{%
-endif %}
+Total cards to generate: {{ common_count + (jobs | length) }}{% if is_season_start %} + season initialization cards{% endif %}
 
 REMINDERS:
 - All tags MUST be from the available_tags list (English snake_case IDs)

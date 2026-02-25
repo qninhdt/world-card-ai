@@ -1,17 +1,3 @@
-"""Runtime game state — the single source of truth during a play session.
-
-``GlobalBlackboard`` is a Pydantic model that holds every piece of mutable
-state needed by the engine, agents and UI:
-
-- World metadata (name, era, description)
-- Player character and NPC roster
-- Stats (keyed by stat ID, 0–100 each)
-- Tags (a set of string identifiers carried across actions)
-- Time model (day/season/year calendar)
-- Structural pre-generated cards waiting to be shown (welcome, reborn, season)
-- Karma and resurrection history
-"""
-
 from __future__ import annotations
 
 from typing import Any
@@ -154,48 +140,36 @@ class GlobalBlackboard(BaseModel):
     # ── Helpers ─────────────────────────────────────────────────────────
 
     def get_stat_icon(self, stat_id: str) -> str:
-        """Return the display icon for a stat, or '?' if the stat is unknown."""
         for sd in self.stat_defs:
             if sd.id == stat_id:
                 return sd.icon
         return "?"
 
     def get_stat_name(self, stat_id: str) -> str:
-        """Return the display name for a stat, or the raw ID if unknown."""
         for sd in self.stat_defs:
             if sd.id == stat_id:
                 return sd.name
         return stat_id
 
     def get_enabled_npcs(self) -> list[NPC]:
-        """Return NPCs that are currently available for card interactions."""
+        """NPCs currently available for actions."""
         return [n for n in self.npcs if n.enabled]
 
     def get_enabled_npc_names(self) -> list[str]:
-        """Return the names of all currently enabled NPCs."""
         return [n.name for n in self.get_enabled_npcs()]
 
     def current_season(self) -> Season | None:
-        """Return the active Season object, or None if seasons are not configured."""
         if self.seasons and 0 <= self.season_index < len(self.seasons):
             return self.seasons[self.season_index]
         return None
 
     @property
     def week_in_season(self) -> int:
-        """Current week within the season (1-based, range 1–WEEKS_PER_SEASON)."""
+        """Current week within the season (1-4)."""
         return ((self.day - 1) // DAYS_PER_WEEK) + 1
 
     def advance_day(self) -> dict[str, bool]:
-        """Advance the calendar by one day and return which boundaries were crossed.
-
-        Returns a dict with boolean flags:
-          - ``week_end``   — True if a 7-day week just completed.
-          - ``season_end`` — True if a 28-day season just completed.
-
-        When a season boundary is crossed ``season_index`` is automatically
-        incremented (and ``year`` incremented when all seasons wrap around).
-        """
+        """Advance 1 day. Returns which boundaries were crossed."""
         self.day += 1
         self.turn += 1
 
@@ -217,7 +191,7 @@ class GlobalBlackboard(BaseModel):
         return crossed
 
     def advance_to_next_season(self) -> None:
-        """Skip remaining days in the current season and jump to Day 1 of the next."""
+        """Skip remaining days and instantly start Day 1 of the next season."""
         self.day = 1
         num_seasons = len(self.seasons) if self.seasons else 4
         self.season_index = (self.season_index + 1) % num_seasons
@@ -226,21 +200,19 @@ class GlobalBlackboard(BaseModel):
 
     @property
     def elapsed_days(self) -> int:
-        """Total days elapsed since the game started (across all lives)."""
+        """Dynamically compute elapsed days from current date vs start date."""
         current_abs = (self.year * DAYS_PER_YEAR) + (self.season_index * DAYS_PER_SEASON) + self.day
         start_abs = (self.start_year * DAYS_PER_YEAR) + (self.start_season_index * DAYS_PER_SEASON) + self.start_day
         return current_abs - start_abs
 
     @property
     def date_display(self) -> str:
-        """Human-readable current date string, e.g. 'Day 5, Spring, Year 2'."""
         season = self.current_season()
         season_name = season.name if season else f"Season {self.season_index + 1}"
         return f"Day {self.day}, {season_name}, Year {self.year}"
 
     @property
     def elapsed_display(self) -> str:
-        """Compact elapsed-time string, e.g. '1y 2s 3d' or '5d'."""
         years = self.elapsed_days // DAYS_PER_YEAR
         rem = self.elapsed_days % DAYS_PER_YEAR
         seasons = rem // DAYS_PER_SEASON
@@ -254,11 +226,7 @@ class GlobalBlackboard(BaseModel):
         return " ".join(parts)
 
     def snapshot(self) -> dict:
-        """Return a compressed state snapshot used as AI generation context.
-
-        Intentionally minimal — only the fields the Writer and Architect need
-        to produce contextually relevant cards.  Do not add large blobs here.
-        """
+        """Compressed snapshot for AI context."""
         season = self.current_season()
         return {
             "world": self.world_name,

@@ -1,12 +1,3 @@
-"""Title screen — main menu where the player configures and starts a new game.
-
-Lets the player choose:
-  - World theme (preset or custom text)
-  - Number of stats (3–5)
-  - Language (English / Tiếng Việt)
-  - Normal mode (requires OPENROUTER_API_KEY) or Demo mode (offline)
-"""
-
 from __future__ import annotations
 
 from textual.app import ComposeResult

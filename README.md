@@ -197,7 +197,9 @@ Here is the structured markdown to-do list, sếp.
 * [ ] Implement an "undo last action" feature
 * [ ] Update progression logic: Configure the system to save a user checkpoint at the beginning of each season rather than skipping directly to the next season
 * [ ] A NPC should have a card to introduce them when they are first introduced
-
+* [ ] Player chacracter and NPCs should age each season, and the LLM should be aware of this when generating cards (e.g., "Your trusted advisor is now an old man nearing the end of his life. Do you...")
+* [ ] Add a "legacy" system where certain achievements or milestones from past lives can unlock special cards or options in future lives (e.g., "Because you successfully defended the kingdom from a dragon in a past life, you have the option to call upon the Dragon's Aid in this life")
+* [ ] Use Lua as the scripting language for card effects instead of Python eval.
 ---
 
 Would you like me to expand any of these items into smaller, actionable sub-tasks?

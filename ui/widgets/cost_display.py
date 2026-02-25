@@ -1,14 +1,3 @@
-"""CostDisplay widget — shows cumulative OpenRouter API cost and token usage.
-
-Colour coding for the cost figure:
-  dim green — under $0.001 (essentially free)
-  green     — $0.001–$0.05
-  yellow    — $0.05–$0.20
-  bold red  — over $0.20
-
-In demo mode the widget just shows "demo" since no API calls are made.
-"""
-
 from __future__ import annotations
 
 from rich.text import Text

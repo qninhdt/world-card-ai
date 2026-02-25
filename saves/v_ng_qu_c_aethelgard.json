@@ -1,0 +1,355 @@
+{
+  "state": {
+    "world_name": "Vương Quốc Aethelgard",
+    "world_context": "Một vùng đất cổ xưa nơi đức tin mãnh liệt đang xung đột với lòng tham của các quý tộc và sức mạnh thép của những hiệp sĩ. Trong bóng tối của vương triều, những âm mưu soán ngôi đang rình rập mỗi bước chân của quân vương.",
+    "era": "Kỷ nguyên của Thánh Tích",
+    "player": {
+      "id": "player",
+      "name": "Vua Alaric II",
+      "role": "Quân chủ của Aethelgard",
+      "description": "Một nhà lãnh đạo trẻ vừa kế vị sau cái chết bí ẩn của phụ vương. Bạn nắm giữ vận mệnh của cả vương quốc trong tay mình.",
+      "traits": [
+        "ambitious",
+        "noble",
+        "vulnerable"
+      ]
+    },
+    "stats": {
+      "church_faith": 35,
+      "noble_loyalty": 25,
+      "treasury_gold": 55
+    },
+    "stat_defs": [
+      {
+        "id": "church_faith",
+        "name": "Đức Tin",
+        "description": "Sự ủng hộ từ Giáo hội và lòng sùng đạo của dân chúng",
+        "icon": "⛪"
+      },
+      {
+        "id": "noble_loyalty",
+        "name": "Quý Tộc",
+        "description": "Lòng trung thành của các gia tộc lớn và sức mạnh quân sự",
+        "icon": "🛡️"
+      },
+      {
+        "id": "treasury_gold",
+        "name": "Ngân Khố",
+        "description": "Sự giàu có và ổn định kinh tế của vương quốc",
+        "icon": "💰"
+      }
+    ],
+    "stat_count": 3,
+    "tags": [
+      "shadow_council",
+      "betrayal_detected"
+    ],
+    "tag_defs": [
+      {
+        "id": "holy_war",
+        "name": "Thánh Chiến",
+        "description": "Vương quốc đang trong tình trạng chiến tranh vì tôn giáo."
+      },
+      {
+        "id": "peasant_revolt",
+        "name": "Nông dân nổi dậy",
+        "description": "Tầng lớp lao động đang phẫn nộ."
+      },
+      {
+        "id": "plague_outbreak",
+        "name": "Dịch bệnh bùng phát",
+        "description": "Một căn bệnh bí ẩn đang lây lan."
+      },
+      {
+        "id": "heir_born",
+        "name": "Người thừa kế ra đời",
+        "description": "Dòng máu hoàng gia đã được đảm bảo."
+      },
+      {
+        "id": "alliance_valois",
+        "name": "Liên minh Valois",
+        "description": "Đã kết đồng minh với gia tộc Valois."
+      },
+      {
+        "id": "excommunicated",
+        "name": "Bị rút phép thông công",
+        "description": "Vua đã bị Giáo hội ruồng bỏ."
+      },
+      {
+        "id": "empty_treasury",
+        "name": "Ngân khố trống rỗng",
+        "description": "Vương quốc đang trên bờ vực phá sản."
+      },
+      {
+        "id": "iron_fist",
+        "name": "Bàn tay sắt",
+        "description": "Cai trị bằng nỗi sợ hãi."
+      },
+      {
+        "id": "betrayal_detected",
+        "name": "Phát hiện phản bội",
+        "description": "Có kẻ nội gián trong triều đình."
+      },
+      {
+        "id": "ancient_relic_found",
+        "name": "Tìm thấy Thánh tích",
+        "description": "Một báu vật từ thời sơ khai đã xuất hiện."
+      },
+      {
+        "id": "shadow_council",
+        "name": "Hội đồng bóng tối",
+        "description": "Các thế lực ngầm đang điều khiển vương quốc."
+      }
+    ],
+    "day": 8,
+    "season_index": 0,
+    "year": 1215,
+    "start_day": 1,
+    "start_season_index": 0,
+    "start_year": 1215,
+    "seasons": [
+      {
+        "name": "Mùa Hạt Giống (Xuân)",
+        "description": "Thời điểm của sự tái sinh và những hy vọng mới trên những cánh đồng.",
+        "icon": "🌱",
+        "on_season_end_calls": [],
+        "on_week_end_calls": [
+          {
+            "name": "update_stat",
+            "params": {
+              "stat_id": "treasury_gold",
+              "value": 5
+            }
+          }
+        ],
+        "on_day_end_calls": []
+      },
+      {
+        "name": "Mùa Rực Rỡ (Hạ)",
+        "description": "Ánh nắng chói chang và những chiến dịch quân sự bắt đầu.",
+        "icon": "☀️",
+        "on_season_end_calls": [],
+        "on_week_end_calls": [
+          {
+            "name": "update_stat",
+            "params": {
+              "stat_id": "noble_loyalty",
+              "value": -2
+            }
+          }
+        ],
+        "on_day_end_calls": []
+      },
+      {
+        "name": "Mùa Thu Hoạch (Thu)",
+        "description": "Thuế được thu về và các lễ hội tạ ơn diễn ra khắp nơi.",
+        "icon": "🍂",
+        "on_season_end_calls": [],
+        "on_week_end_calls": [
+          {
+            "name": "update_stat",
+            "params": {
+              "stat_id": "treasury_gold",
+              "value": 15
+            }
+          }
+        ],
+        "on_day_end_calls": []
+      },
+      {
+        "name": "Mùa Sương Giá (Đông)",
+        "description": "Cái lạnh thấu xương thử thách đức tin và lòng kiên trì của con người.",
+        "icon": "❄️",
+        "on_season_end_calls": [],
+        "on_week_end_calls": [
+          {
+            "name": "update_stat",
+            "params": {
+              "stat_id": "church_faith",
+              "value": 5
+            }
+          }
+        ],
+        "on_day_end_calls": []
+      }
+    ],
+    "turn": 0,
+    "npcs": [
+      {
+        "id": "bishop_elias",
+        "name": "Đức Giám mục Elias",
+        "role": "Đại diện Giáo hội",
+        "description": "Một người đàn ông xảo quyệt, luôn đặt lợi ích của đức tin lên trên ngai vàng.",
+        "traits": [
+          "pious",
+          "manipulative"
+        ],
+        "enabled": true,
+        "npc_appearance_count": 2
+      },
+      {
+        "id": "duke_oswald",
+        "name": "Công tước Oswald",
+        "role": "Thống lĩnh quân đội",
+        "description": "Một chiến binh kỳ cựu sở hữu đạo quân mạnh nhất vương quốc.",
+        "traits": [
+          "brave",
+          "ambitious"
+        ],
+        "enabled": true,
+        "npc_appearance_count": 2
+      },
+      {
+        "id": "lady_isabella",
+        "name": "Phu nhân Isabella",
+        "role": "Trưởng nữ gia tộc Valois",
+        "description": "Nổi tiếng với trí tuệ và mạng lưới gián điệp rộng khắp.",
+        "traits": [
+          "clever",
+          "mysterious"
+        ],
+        "enabled": true,
+        "npc_appearance_count": 2
+      },
+      {
+        "id": "jester_puck",
+        "name": "Hề Puck",
+        "role": "Kẻ mua vui",
+        "description": "Dưới lớp mặt nạ cười là một người quan sát tinh tường mọi sự thật trong cung điện.",
+        "traits": [
+          "witty",
+          "observant"
+        ],
+        "enabled": true,
+        "npc_appearance_count": 1
+      },
+      {
+        "id": "mysterious_assassin",
+        "name": "Sát thủ bóng đêm",
+        "role": "Kẻ ám sát",
+        "description": "Một bóng ma từ quá khứ quay lại để đòi nợ máu.",
+        "traits": [
+          "deadly",
+          "silent"
+        ],
+        "enabled": false,
+        "npc_appearance_count": 0
+      },
+      {
+        "id": "pope_innocent",
+        "name": "Giáo hoàng Innocent",
+        "role": "Lãnh đạo tối cao",
+        "description": "Người nắm giữ quyền lực tuyệt đối về tâm linh.",
+        "traits": [
+          "authoritarian",
+          "wise"
+        ],
+        "enabled": false,
+        "npc_appearance_count": 0
+      }
+    ],
+    "relationships": [
+      {
+        "a": "player",
+        "b": "bishop_elias",
+        "relationship": "Cố vấn tâm linh đầy hoài nghi"
+      },
+      {
+        "a": "player",
+        "b": "duke_oswald",
+        "relationship": "Đồng minh quân sự mong manh"
+      },
+      {
+        "a": "duke_oswald",
+        "b": "bishop_elias",
+        "relationship": "Đối thủ cạnh tranh ảnh hưởng"
+      },
+      {
+        "a": "lady_isabella",
+        "b": "player",
+        "relationship": "Người nắm giữ những bí mật hoàng gia"
+      },
+      {
+        "a": "player",
+        "b": "jester_puck",
+        "relationship": "Người bạn tâm giao không chính thức"
+      }
+    ],
+    "pending_plot_node": null,
+    "karma": [],
+    "life_number": 1,
+    "resurrection_mechanic": "Sự kế thừa huyết thống",
+    "resurrection_flavor": "Vị vua cũ đã băng hà, nhưng dòng máu hoàng gia không bao giờ cạn. Một người thừa kế mới bước ra từ bóng tối để gánh vác vương miện đầy gai.",
+    "previous_life_tags": [],
+    "is_first_day_after_death": false,
+    "welcome_card": null,
+    "reborn_card": null,
+    "season_start_card": null,
+    "pending_death_cards": {
+      "death_church_faith_min": {
+        "id": "death_church_faith_min",
+        "title": "Sự Trừng Phạt Của Thần Linh",
+        "description": "Dân chúng coi ngài là kẻ dị giáo. Một đám đông cuồng tín đã xông vào cung điện, lôi ngài ra khỏi ngai vàng để 'thanh tẩy' bằng ngọn lửa vĩnh cửu.",
+        "character": "bishop_elias",
+        "source": "common",
+        "priority": 1,
+        "type": "info",
+        "next_cards": []
+      },
+      "death_church_faith_max": {
+        "id": "death_church_faith_max",
+        "title": "Thánh Đế Chế",
+        "description": "Đức tin quá mãnh liệt đã biến vương quốc thành một thần quyền tuyệt đối. Ngài không còn là vua, mà chỉ là một con rối của Giáo hội trong các cuộc thánh chiến vô tận.",
+        "character": "bishop_elias",
+        "source": "common",
+        "priority": 1,
+        "type": "info",
+        "next_cards": []
+      },
+      "death_noble_loyalty_min": {
+        "id": "death_noble_loyalty_min",
+        "title": "Đêm Của Những Con Dao Dài",
+        "description": "Các quý tộc không còn kiên nhẫn với sự cai trị của ngài. Họ đã lẻn vào phòng ngủ của ngài trong đêm và kết thúc triều đại của Alaric II bằng một nhát kiếm lạnh lùng.",
+        "character": "duke_oswald",
+        "source": "common",
+        "priority": 1,
+        "type": "info",
+        "next_cards": []
+      },
+      "death_noble_loyalty_max": {
+        "id": "death_noble_loyalty_max",
+        "title": "Vị Vua Bù Nhìn",
+        "description": "Sự ủng hộ tuyệt đối của quý tộc đi kèm với cái giá quá đắt. Họ đã tước đoạt mọi quyền lực thực tế, để ngài sống phần đời còn lại như một vật trang trí trong lâu đài.",
+        "character": "lady_isabella",
+        "source": "common",
+        "priority": 1,
+        "type": "info",
+        "next_cards": []
+      },
+      "death_treasury_gold_min": {
+        "id": "death_treasury_gold_min",
+        "title": "Vương Quốc Phá Sản",
+        "description": "Kho bạc trống rỗng, quân đội đào ngũ và các chủ nợ siết chặt vòng vây. Ngài bị bán cho vương quốc láng giềng để trả nợ cho những sai lầm của mình.",
+        "character": "lady_isabella",
+        "source": "common",
+        "priority": 1,
+        "type": "info",
+        "next_cards": []
+      },
+      "death_treasury_gold_max": {
+        "id": "death_treasury_gold_max",
+        "title": "Cái Chết Trong Vàng Son",
+        "description": "Sự giàu có tột độ thu hút những kẻ tham lam nhất thế giới. Ngài bị chính những cận vệ thân tín nhất đầu độc để chia chác số kho báu khổng lồ trong cung điện.",
+        "character": "jester_puck",
+        "source": "common",
+        "priority": 1,
+        "type": "info",
+        "next_cards": []
+      }
+    }
+  },
+  "events": [],
+  "dag_fired_nodes": [],
+  "saved_at": "2026-02-23T09:48:07.739851+00:00",
+  "save_version": 1
+}

@@ -1,15 +1,3 @@
-"""API cost tracking across all LLM calls in a session.
-
-``CostTracker`` accumulates ``CostEntry`` records from two sources:
-  - ``record_from_raw()`` — parses cost/token data from a LangChain
-    ``AIMessage``'s metadata (works for non-streaming calls).
-  - ``record_manual()`` — estimates token counts from character lengths
-    (used for streaming calls where metadata is not available per-chunk).
-
-The ``summary`` and ``detail`` properties format totals for display in the
-``CostDisplay`` widget.
-"""
-
 from __future__ import annotations
 
 from dataclasses import dataclass, field
